@@ -30,7 +30,7 @@ export default function AdmitModal({ bedNum, onClose }) {
       active: true
     })
     setSaving(false)
-    onClose()
+    onClose(true)
   }
 
   return (

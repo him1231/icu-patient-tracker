@@ -138,7 +138,7 @@ export default function Dashboard() {
           bedNum={selectedBed.bedNum}
           patient={selectedBed.patient}
           todayRecord={todayRecords[selectedBed.patient.id]}
-          onClose={() => { setSelectedBed(null); loadData() }}
+          onClose={(changed) => { setSelectedBed(null); if (changed) loadData() }}
           onTransfer={() => {
             setSelectedBed(null)
             startTransfer(selectedBed.bedNum, selectedBed.patient)
@@ -148,7 +148,7 @@ export default function Dashboard() {
       {admitBed && !transferMode && (
         <AdmitModal
           bedNum={admitBed}
-          onClose={() => { setAdmitBed(null); loadData() }}
+          onClose={(changed) => { setAdmitBed(null); if (changed) loadData() }}
         />
       )}
     </div>

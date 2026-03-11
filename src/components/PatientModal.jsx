@@ -55,7 +55,7 @@ export default function PatientModal({ bedNum, patient, todayRecord, onClose, on
       savedAt: new Date().toISOString()
     })
     setSaving(false)
-    onClose()
+    onClose(true)
   }
 
   const handleDischarge = async () => {
@@ -66,7 +66,7 @@ export default function PatientModal({ bedNum, patient, todayRecord, onClose, on
       active: false
     })
     setDischarging(false)
-    onClose()
+    onClose(true)
   }
 
   return (
