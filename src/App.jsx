@@ -10,8 +10,8 @@ export default function App() {
       <nav className="navbar">
         <span className="nav-title">🏥 ICU Patient Tracker</span>
         <div className="nav-links">
-          <Link to="/" className={location.pathname === '/' ? 'active' : ''}>病床總覽</Link>
-          <Link to="/admin" className={location.pathname === '/admin' ? 'active' : ''}>管理設定</Link>
+          <Link to="/" className={location.pathname === '/' ? 'active' : ''}>Dashboard</Link>
+          <Link to="/admin" className={location.pathname === '/admin' ? 'active' : ''}>Admin</Link>
         </div>
       </nav>
       <Routes>

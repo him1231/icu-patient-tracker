@@ -27,11 +27,13 @@ async function ensureDefaultConfig() {
 }
 
 export default function Dashboard() {
-  const [patients, setPatients] = useState([])
+  const [patients, setPatients] = useState({})
   const [todayRecords, setTodayRecords] = useState({})
   const [loading, setLoading] = useState(true)
   const [selectedBed, setSelectedBed] = useState(null)
   const [admitBed, setAdmitBed] = useState(null)
+  const [transferMode, setTransferMode] = useState(false)
+  const [transferSource, setTransferSource] = useState(null) // { bedNum, patient }
 
   const loadData = async () => {
     setLoading(true)
@@ -42,7 +44,6 @@ export default function Dashboard() {
       const pts = {}
       snap.forEach(d => { pts[d.data().bedNumber] = { id: d.id, ...d.data() } })
       setPatients(pts)
-      // load today's records
       const recSnap = await getDocs(collection(db, 'dailyRecords'))
       const recs = {}
       recSnap.forEach(d => {
@@ -51,8 +52,8 @@ export default function Dashboard() {
       })
       setTodayRecords(recs)
     } catch (err) {
-      console.error('載入失敗:', err)
-      alert('載入失敗，請檢查網絡或 Firebase 設定：' + err.message)
+      console.error('Load failed:', err)
+      alert('Failed to load data. Check network or Firebase config: ' + err.message)
     } finally {
       setLoading(false)
     }
@@ -60,10 +61,49 @@ export default function Dashboard() {
 
   useEffect(() => { loadData() }, [])
 
-  const handleBedClick = (bedNum) => {
+  const handleBedClick = async (bedNum) => {
     const patient = patients[bedNum]
+
+    // Transfer mode: pick destination
+    if (transferMode && transferSource) {
+      if (bedNum === transferSource.bedNum) {
+        // clicked same bed — cancel
+        setTransferMode(false)
+        setTransferSource(null)
+        return
+      }
+      if (patient) {
+        alert(`Bed ${bedNum} is occupied. Please select an empty bed.`)
+        return
+      }
+      // Do the transfer
+      try {
+        await setDoc(doc(db, 'patients', transferSource.patient.id), {
+          ...transferSource.patient,
+          bedNumber: bedNum
+        })
+        alert(`${transferSource.patient.hn} transferred from Bed ${transferSource.bedNum} to Bed ${bedNum}.`)
+      } catch (err) {
+        alert('Transfer failed: ' + err.message)
+      }
+      setTransferMode(false)
+      setTransferSource(null)
+      loadData()
+      return
+    }
+
     if (patient) setSelectedBed({ bedNum, patient })
     else setAdmitBed(bedNum)
+  }
+
+  const startTransfer = (bedNum, patient) => {
+    setTransferMode(true)
+    setTransferSource({ bedNum, patient })
+  }
+
+  const cancelTransfer = () => {
+    setTransferMode(false)
+    setTransferSource(null)
   }
 
   return (
@@ -71,7 +111,13 @@ export default function Dashboard() {
       <div className="export-section">
         <ExportButton />
       </div>
-      {loading ? <div className="loading">載入中...</div> : (
+      {transferMode && (
+        <div className="transfer-banner">
+          🔄 Transferring <strong>{transferSource.patient.hn}</strong> from Bed {transferSource.bedNum} — select an empty bed as destination
+          <button className="btn btn-secondary" style={{marginLeft:'12px',padding:'4px 12px',fontSize:'0.82rem'}} onClick={cancelTransfer}>Cancel</button>
+        </div>
+      )}
+      {loading ? <div className="loading">Loading...</div> : (
         <div className="bed-grid">
           {Array.from({length:32},(_,i)=>i+1).map(n => (
             <BedCard
@@ -80,19 +126,26 @@ export default function Dashboard() {
               patient={patients[n] || null}
               todayRecord={patients[n] ? todayRecords[patients[n].id] : null}
               onClick={() => handleBedClick(n)}
+              transferMode={transferMode}
+              isTransferSource={transferSource?.bedNum === n}
+              onTransfer={patients[n] ? () => startTransfer(n, patients[n]) : null}
             />
           ))}
         </div>
       )}
-      {selectedBed && (
+      {selectedBed && !transferMode && (
         <PatientModal
           bedNum={selectedBed.bedNum}
           patient={selectedBed.patient}
           todayRecord={todayRecords[selectedBed.patient.id]}
           onClose={() => { setSelectedBed(null); loadData() }}
+          onTransfer={() => {
+            setSelectedBed(null)
+            startTransfer(selectedBed.bedNum, selectedBed.patient)
+          }}
         />
       )}
-      {admitBed && (
+      {admitBed && !transferMode && (
         <AdmitModal
           bedNum={admitBed}
           onClose={() => { setAdmitBed(null); loadData() }}

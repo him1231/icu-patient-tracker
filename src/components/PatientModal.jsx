@@ -5,7 +5,7 @@ import { db } from '../firebase'
 const TODAY = new Date().toISOString().split('T')[0]
 const YESTERDAY = new Date(Date.now()-86400000).toISOString().split('T')[0]
 
-export default function PatientModal({ bedNum, patient, todayRecord, onClose }) {
+export default function PatientModal({ bedNum, patient, todayRecord, onClose, onTransfer }) {
   const [config, setConfig] = useState({ mmrc: [], exercise: [] })
   const [form, setForm] = useState({
     level: todayRecord?.level || 0,
@@ -17,7 +17,6 @@ export default function PatientModal({ bedNum, patient, todayRecord, onClose }) 
   const [discharging, setDischarging] = useState(false)
 
   useEffect(() => {
-    // load config
     Promise.all([
       getDoc(doc(db, 'config', 'mmrcItems')),
       getDoc(doc(db, 'config', 'exerciseOptions'))
@@ -27,7 +26,6 @@ export default function PatientModal({ bedNum, patient, todayRecord, onClose }) 
         exercise: e.exists() ? e.data().options : []
       })
     })
-    // if no today record, prefill from yesterday
     if (!todayRecord) {
       getDoc(doc(db, 'dailyRecords', `${patient.id}_${YESTERDAY}`)).then(s => {
         if (s.exists()) {
@@ -45,7 +43,7 @@ export default function PatientModal({ bedNum, patient, todayRecord, onClose }) 
   }
 
   const handleSave = async () => {
-    if (!form.level) return alert('請選擇 Level')
+    if (!form.level) return alert('Please select a Level')
     setSaving(true)
     await setDoc(doc(db, 'dailyRecords', `${patient.id}_${TODAY}`), {
       patientId: patient.id,
@@ -61,7 +59,7 @@ export default function PatientModal({ bedNum, patient, todayRecord, onClose }) 
   }
 
   const handleDischarge = async () => {
-    if (!confirm(`確認 ${patient.hn} 出院？`)) return
+    if (!confirm(`Confirm discharge ${patient.hn}?`)) return
     setDischarging(true)
     await updateDoc(doc(db, 'patients', patient.id), {
       dischargeDate: TODAY,
@@ -74,10 +72,10 @@ export default function PatientModal({ bedNum, patient, todayRecord, onClose }) 
   return (
     <div className="modal-overlay" onClick={e => e.target===e.currentTarget && onClose()}>
       <div className="modal">
-        <h2>床 {bedNum} — {patient.hn}</h2>
+        <h2>Bed {bedNum} — {patient.hn}</h2>
         <div className="patient-info">
-          <p><strong>HN:</strong> {patient.hn} &nbsp; <strong>性別:</strong> {patient.gender}</p>
-          <p><strong>Specialty:</strong> {patient.specialty} &nbsp; <strong>入院:</strong> {patient.admissionDate}</p>
+          <p><strong>HN:</strong> {patient.hn} &nbsp; <strong>Gender:</strong> {patient.gender}</p>
+          <p><strong>Specialty:</strong> {patient.specialty} &nbsp; <strong>Admission:</strong> {patient.admissionDate}</p>
         </div>
         <div className="form-group">
           <label>Level</label>
@@ -111,17 +109,20 @@ export default function PatientModal({ bedNum, patient, todayRecord, onClose }) 
         <div className="form-group">
           <label>Exercise</label>
           <select value={form.exercise} onChange={e=>setForm({...form,exercise:e.target.value})}>
-            <option value="">-- 選擇 --</option>
+            <option value="">-- Select --</option>
             {config.exercise.map(o=><option key={o.id} value={o.label}>{o.label}</option>)}
           </select>
         </div>
         <div className="modal-actions">
-          <button className="btn btn-danger" onClick={handleDischarge} disabled={discharging}>
-            {discharging?'處理中...':'出院 Discharge'}
+          <button className="btn btn-outline" onClick={onTransfer} style={{borderColor:'#805ad5',color:'#805ad5'}}>
+            ⇄ Transfer Bed
           </button>
-          <button className="btn btn-secondary" onClick={onClose}>取消</button>
+          <button className="btn btn-danger" onClick={handleDischarge} disabled={discharging}>
+            {discharging ? 'Processing...' : 'Discharge'}
+          </button>
+          <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
           <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-            {saving?'儲存中...':'儲存今日記錄'}
+            {saving ? 'Saving...' : 'Save Today'}
           </button>
         </div>
       </div>

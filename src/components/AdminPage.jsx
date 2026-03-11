@@ -10,7 +10,7 @@ function ConfigSection({ title, configKey, fieldKey }) {
 
   useEffect(() => {
     getDoc(doc(db, 'config', configKey)).then(s => {
-      if (s.exists()) setItems(s.data()[fieldKey]||[])
+      if (s.exists()) setItems(s.data()[fieldKey] || [])
     })
   }, [])
 
@@ -26,10 +26,12 @@ function ConfigSection({ title, configKey, fieldKey }) {
     setNewLabel('')
   }
 
-  const deleteItem = (id) => save(items.filter(i=>i.id!==id))
+  const deleteItem = (id) => {
+    if (confirm('Delete this item?')) save(items.filter(i => i.id !== id))
+  }
 
   const saveEdit = (id) => {
-    save(items.map(i=>i.id===id?{...i,label:editLabel}:i))
+    save(items.map(i => i.id === id ? { ...i, label: editLabel } : i))
     setEditId(null)
   }
 
@@ -37,22 +39,23 @@ function ConfigSection({ title, configKey, fieldKey }) {
     <div className="admin-section">
       <h3>{title}</h3>
       <ul className="item-list">
-        {items.map(item=>(
+        {items.map(item => (
           <li key={item.id}>
-            {editId===item.id ? (
+            {editId === item.id ? (
               <>
-                <input value={editLabel} onChange={e=>setEditLabel(e.target.value)} style={{flex:1,padding:'4px 8px',border:'1px solid #ccc',borderRadius:'4px'}} />
+                <input value={editLabel} onChange={e => setEditLabel(e.target.value)}
+                  style={{flex:1,padding:'4px 8px',border:'1px solid #ccc',borderRadius:'4px'}} />
                 <div className="item-actions">
-                  <button className="btn-edit" onClick={()=>saveEdit(item.id)}>儲存</button>
-                  <button className="btn-delete" onClick={()=>setEditId(null)}>取消</button>
+                  <button className="btn-edit" onClick={() => saveEdit(item.id)}>Save</button>
+                  <button className="btn-delete" onClick={() => setEditId(null)}>Cancel</button>
                 </div>
               </>
             ) : (
               <>
                 <span>{item.label}</span>
                 <div className="item-actions">
-                  <button className="btn-edit" onClick={()=>{setEditId(item.id);setEditLabel(item.label)}}>編輯</button>
-                  <button className="btn-delete" onClick={()=>deleteItem(item.id)}>刪除</button>
+                  <button className="btn-edit" onClick={() => { setEditId(item.id); setEditLabel(item.label) }}>Edit</button>
+                  <button className="btn-delete" onClick={() => deleteItem(item.id)}>Delete</button>
                 </div>
               </>
             )}
@@ -60,8 +63,9 @@ function ConfigSection({ title, configKey, fieldKey }) {
         ))}
       </ul>
       <div className="add-item-form">
-        <input value={newLabel} onChange={e=>setNewLabel(e.target.value)} placeholder="新增項目..." onKeyDown={e=>e.key==='Enter'&&addItem()} />
-        <button className="btn btn-primary" onClick={addItem} style={{whiteSpace:'nowrap'}}>+ 新增</button>
+        <input value={newLabel} onChange={e => setNewLabel(e.target.value)} placeholder="Add new item..."
+          onKeyDown={e => e.key === 'Enter' && addItem()} />
+        <button className="btn btn-primary" onClick={addItem} style={{whiteSpace:'nowrap'}}>+ Add</button>
       </div>
     </div>
   )
