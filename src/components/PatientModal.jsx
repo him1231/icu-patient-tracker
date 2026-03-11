@@ -5,6 +5,20 @@ import { db } from '../firebase'
 const TODAY = new Date().toISOString().split('T')[0]
 const YESTERDAY = new Date(Date.now()-86400000).toISOString().split('T')[0]
 
+const IMS_OPTIONS = [
+  [0, '0 - Nothing (lying in bed)'],
+  [1, '1 - Sitting in bed, exercises in bed'],
+  [2, '2 - Passively moved to chair (no standing)'],
+  [3, '3 - Sitting over edge of bed'],
+  [4, '4 - Standing'],
+  [5, '5 - Transferring bed to chair'],
+  [6, '6 - Marching on spot'],
+  [7, '7 - Walking with 2+ assist'],
+  [8, '8 - Walking with 1 assist'],
+  [9, '9 - Walking independently with aid'],
+  [10, '10 - Walking independently without aid'],
+]
+
 const MMRC_ROWS = ['Shoulder', 'Elbow', 'Wrist', 'Hip', 'Knee', 'Ankle']
 
 export default function PatientModal({ bedNum, patient, todayRecord, onClose, onTransfer }) {
@@ -94,12 +108,12 @@ export default function PatientModal({ bedNum, patient, todayRecord, onClose, on
           </div>
         </div>
         <div className="form-group">
-          <label>IMS (0-10)</label>
-          <div className="ims-control">
-            <button onClick={()=>setForm({...form,ims:Math.max(0,form.ims-1)})} type="button">-</button>
-            <span>{form.ims}</span>
-            <button onClick={()=>setForm({...form,ims:Math.min(10,form.ims+1)})} type="button">+</button>
-          </div>
+          <label>IMS — ICU Mobility Scale</label>
+          <select value={form.ims} onChange={e=>setForm({...form,ims:parseInt(e.target.value)})}>
+            {IMS_OPTIONS.map(([val, label]) => (
+              <option key={val} value={val}>{label}</option>
+            ))}
+          </select>
         </div>
         <div className="form-group">
           <label>MMRC &nbsp;<span style={{fontWeight:'normal',color:'#718096'}}>Total: <strong style={{color:'#2b6cb0'}}>{mmrcTotal}</strong> / 60</span></label>
