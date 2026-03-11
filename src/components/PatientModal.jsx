@@ -25,7 +25,7 @@ export default function PatientModal({ bedNum, patient, todayRecord, onClose, on
   const [config, setConfig] = useState({ exercise: [] })
   const [form, setForm] = useState({
     level: todayRecord?.level || 0,
-    ims: todayRecord?.ims ?? 5,
+    ims: todayRecord?.ims ?? 1,
     mmrc: todayRecord?.mmrc || Array(12).fill(0),
     exercise: todayRecord?.exercise || ''
   })
@@ -43,7 +43,7 @@ export default function PatientModal({ bedNum, patient, todayRecord, onClose, on
           setForm(f => ({
             ...f,
             level: d.level || 0,
-            ims: d.ims ?? 5,
+            ims: d.ims ?? 1,
             mmrc: Array.isArray(d.mmrc) ? d.mmrc.map(v => typeof v === 'boolean' ? (v ? 1 : 0) : (v ?? 0)) : Array(12).fill(0),
             exercise: d.exercise || ''
           }))
