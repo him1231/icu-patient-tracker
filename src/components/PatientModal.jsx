@@ -5,42 +5,47 @@ import { db } from '../firebase'
 const TODAY = new Date().toISOString().split('T')[0]
 const YESTERDAY = new Date(Date.now()-86400000).toISOString().split('T')[0]
 
+const MMRC_ROWS = ['Shoulder', 'Elbow', 'Wrist', 'Hip', 'Knee', 'Ankle']
+
 export default function PatientModal({ bedNum, patient, todayRecord, onClose, onTransfer }) {
-  const [config, setConfig] = useState({ mmrc: [], exercise: [] })
+  const [config, setConfig] = useState({ exercise: [] })
   const [form, setForm] = useState({
     level: todayRecord?.level || 0,
     ims: todayRecord?.ims ?? 5,
-    mmrc: todayRecord?.mmrc || Array(12).fill(false),
+    mmrc: todayRecord?.mmrc || Array(12).fill(0),
     exercise: todayRecord?.exercise || ''
   })
   const [saving, setSaving] = useState(false)
   const [discharging, setDischarging] = useState(false)
 
   useEffect(() => {
-    Promise.all([
-      getDoc(doc(db, 'config', 'mmrcItems')),
-      getDoc(doc(db, 'config', 'exerciseOptions'))
-    ]).then(([m, e]) => {
-      setConfig({
-        mmrc: m.exists() ? m.data().items : [],
-        exercise: e.exists() ? e.data().options : []
-      })
+    getDoc(doc(db, 'config', 'exerciseOptions')).then(e => {
+      setConfig({ exercise: e.exists() ? e.data().options : [] })
     })
     if (!todayRecord) {
       getDoc(doc(db, 'dailyRecords', `${patient.id}_${YESTERDAY}`)).then(s => {
         if (s.exists()) {
           const d = s.data()
-          setForm(f => ({ ...f, level: d.level||0, ims: d.ims??5, mmrc: d.mmrc||Array(12).fill(false), exercise: d.exercise||'' }))
+          setForm(f => ({
+            ...f,
+            level: d.level || 0,
+            ims: d.ims ?? 5,
+            mmrc: Array.isArray(d.mmrc) ? d.mmrc.map(v => typeof v === 'boolean' ? (v ? 1 : 0) : (v ?? 0)) : Array(12).fill(0),
+            exercise: d.exercise || ''
+          }))
         }
       })
     }
   }, [])
 
-  const toggleMmrc = (i) => {
+  const setMmrc = (i, val) => {
     const arr = [...form.mmrc]
-    arr[i] = !arr[i]
+    const v = parseInt(val)
+    arr[i] = isNaN(v) ? 0 : Math.min(5, Math.max(0, v))
     setForm({...form, mmrc: arr})
   }
+
+  const mmrcTotal = form.mmrc.reduce((sum, v) => sum + (Number(v) || 0), 0)
 
   const handleSave = async () => {
     if (!form.level) return alert('Please select a Level')
@@ -50,7 +55,7 @@ export default function PatientModal({ bedNum, patient, todayRecord, onClose, on
       date: TODAY,
       level: form.level,
       ims: form.ims,
-      mmrc: form.mmrc,
+      mmrc: form.mmrc.map(v => Number(v) || 0),
       exercise: form.exercise,
       savedAt: new Date().toISOString()
     })
@@ -97,15 +102,21 @@ export default function PatientModal({ bedNum, patient, todayRecord, onClose, on
           </div>
         </div>
         <div className="form-group">
-          <label>MMRC ({form.mmrc.filter(Boolean).length}/12)</label>
-          <div className="mmrc-grid">
-            {config.mmrc.map((item,i)=>(
-              <label key={i} className="mmrc-item">
-                <input type="checkbox" checked={form.mmrc[i]||false} onChange={()=>toggleMmrc(i)} />
-                {item.label}
-              </label>
-            ))}
-          </div>
+          <label>MMRC &nbsp;<span style={{fontWeight:'normal',color:'#718096'}}>Total: <strong style={{color:'#2b6cb0'}}>{mmrcTotal}</strong> / 60</span></label>
+          <table className="mmrc-table">
+            <thead>
+              <tr><th></th><th>Rt</th><th>Lt</th></tr>
+            </thead>
+            <tbody>
+              {MMRC_ROWS.map((row, i) => (
+                <tr key={row}>
+                  <td className="mmrc-label">{row}</td>
+                  <td><input type="number" min="0" max="5" value={form.mmrc[i*2] ?? 0} onChange={e=>setMmrc(i*2, e.target.value)} className="mmrc-score-input" /></td>
+                  <td><input type="number" min="0" max="5" value={form.mmrc[i*2+1] ?? 0} onChange={e=>setMmrc(i*2+1, e.target.value)} className="mmrc-score-input" /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
         <div className="form-group">
           <label>Exercise</label>

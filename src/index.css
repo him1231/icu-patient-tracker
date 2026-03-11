@@ -65,6 +65,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .bed-transfer-btn { font-size: 0.75rem; color: #805ad5; font-weight: 700; margin-top: 4px; cursor: pointer; padding: 1px 6px; border-radius: 4px; background: #faf5ff; border: 1px solid #d6bcfa; display: inline-block; align-self: flex-start; }
 .bed-transfer-btn:hover { background: #805ad5; color: white; }
 .transfer-banner { background: #805ad5; color: white; padding: 10px 20px; font-size: 0.9rem; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.mmrc-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+.mmrc-table th { text-align: center; font-size: 0.82rem; color: #4a5568; padding: 4px 8px; border-bottom: 2px solid #e2e8f0; }
+.mmrc-table td { padding: 5px 8px; border-bottom: 1px solid #f0f4f8; }
+.mmrc-label { font-size: 0.85rem; color: #2d3748; font-weight: 500; width: 80px; }
+.mmrc-score-input { width: 54px; padding: 5px 8px; border: 1.5px solid #e2e8f0; border-radius: 6px; font-size: 0.9rem; text-align: center; outline: none; }
+.mmrc-score-input:focus { border-color: #4299e1; }
 .loading { text-align: center; padding: 40px; color: #718096; }
 @media (max-width: 600px) {
   .bed-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; padding: 12px; }

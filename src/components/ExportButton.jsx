@@ -28,7 +28,7 @@ export default function ExportButton() {
         allRecs[data.patientId].push(data)
       })
 
-      const mmrcCount = arr => Array.isArray(arr) ? arr.filter(Boolean).length : 0
+      const mmrcCount = arr => Array.isArray(arr) ? arr.reduce((s, v) => s + (Number(v) || 0), 0) : 0
 
       const rows = patients.map(p => {
         const recs = (allRecs[p.id] || []).sort((a, b) => a.date.localeCompare(b.date))
