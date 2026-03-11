@@ -46,10 +46,10 @@ export default function ExportButton() {
           'Length of Stay (days)': los,
           'Initial Level': first?.level || '',
           'Initial IMS': first?.ims ?? '',
-          'Initial MMRC': first ? mmrcCount(first.mmrc) : '',
+          'Initial MRCSS': first ? mmrcCount(first.mmrc) : '',
           'Final Level': last?.level || '',
           'Final IMS': last?.ims ?? '',
-          'Final MMRC': last ? mmrcCount(last.mmrc) : '',
+          'Final MRCSS': last ? mmrcCount(last.mmrc) : '',
           'Best Exercise': last?.exercise || '',
           'Days of Level 4': recs.filter(r => r.level === 4).length
         }

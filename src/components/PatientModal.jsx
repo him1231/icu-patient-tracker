@@ -116,7 +116,7 @@ export default function PatientModal({ bedNum, patient, todayRecord, onClose, on
           </select>
         </div>
         <div className="form-group">
-          <label>MMRC &nbsp;<span style={{fontWeight:'normal',color:'#718096'}}>Total: <strong style={{color:'#2b6cb0'}}>{mmrcTotal}</strong> / 60</span></label>
+          <label>MRCSS &nbsp;<span style={{fontWeight:'normal',color:'#718096'}}>Total: <strong style={{color:'#2b6cb0'}}>{mmrcTotal}</strong> / 60</span></label>
           <table className="mmrc-table">
             <thead>
               <tr><th></th><th>Rt</th><th>Lt</th></tr>

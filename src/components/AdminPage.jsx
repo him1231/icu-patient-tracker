@@ -76,7 +76,6 @@ function ConfigSection({ title, configKey, fieldKey, protectedId }) {
 export default function AdminPage() {
   return (
     <div>
-      <ConfigSection title="MMRC Items" configKey="mmrcItems" fieldKey="items" />
       <ConfigSection title="Exercise Options" configKey="exerciseOptions" fieldKey="options" />
       <ConfigSection title="Specialty" configKey="specialtyOptions" fieldKey="options" />
       <ConfigSection title="Diagnosis" configKey="diagnosisOptions" fieldKey="options" protectedId="__other__" />
