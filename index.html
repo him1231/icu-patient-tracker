@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ICU Patient Tracker</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <h1>ICU Patient Tracker</h1>
+    <div class="actions">
+      <button id="exportBtn">Export Excel</button>
+      <label><input type="checkbox" id="filterActive" checked> Active only</label>
+      <a href="admin.html" class="admin-link">Admin</a>
+    </div>
+  </header>
+  <main>
+    <div id="beds" class="beds-grid"></div>
+  </main>
+
+  <!-- Modal -->
+  <div id="modal" class="modal hidden"></div>
+
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script>
+    // TODO: Replace with actual firebaseConfig from Firebase console
+    const firebaseConfig = {
+      apiKey: "REPLACE_ME",
+      authDomain: "REPLACE_ME",
+      projectId: "REPLACE_ME",
+      storageBucket: "REPLACE_ME",
+      messagingSenderId: "REPLACE_ME",
+      appId: "REPLACE_ME"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // Utilities
+    function qs(q){return document.querySelector(q)}
+    function qsa(q){return document.querySelectorAll(q)}
+
+    const bedsEl = qs('#beds');
+    const modal = qs('#modal');
+    const exportBtn = qs('#exportBtn');
+    const filterActive = qs('#filterActive');
+
+    let config = {mmrcItems: [], exerciseOptions: [], specialtyOptions: []};
+
+    async function ensureDefaultConfig(){
+      const cfgRef = db.doc('config/mmrcItems');
+      const snap = await cfgRef.get();
+      if(!snap.exists){
+        await db.doc('config/mmrcItems').set({items: Array.from({length:12},(_,i)=>({id: i+1, label: 'Item '+(i+1)}))});
+      }
+      const exRef = db.doc('config/exerciseOptions');
+      if(!(await exRef.get()).exists){
+        await exRef.set({options: Array.from({length:5},(_,i)=>({id: i+1, label: 'Option '+(i+1)}))});
+      }
+      const spRef = db.doc('config/specialtyOptions');
+      if(!(await spRef.get()).exists){
+        await spRef.set({options: [{id:1,label:'Ortho'},{id:2,label:'Neuro'},{id:3,label:'Cardio'},{id:4,label:'Respiratory'},{id:5,label:'General'}]});
+      }
+    }
+
+    async function loadConfig(){
+      const mm = (await db.doc('config/mmrcItems').get()).data();
+      const ex = (await db.doc('config/exerciseOptions').get()).data();
+      const sp = (await db.doc('config/specialtyOptions').get()).data();
+      config.mmrcItems = mm?.items || [];
+      config.exerciseOptions = ex?.options || [];
+      config.specialtyOptions = sp?.options || [];
+    }
+
+    function renderBeds(patientsMap){
+      bedsEl.innerHTML='';
+      for(let i=1;i<=32;i++){
+        const p = Object.values(patientsMap).find(x=>x.bedNumber===i && x.active);
+        const div = document.createElement('div');
+        div.className='bed'+(p?' occupied':' empty');
+        div.innerHTML=`<div class="bed-number">Bed ${i}</div>`+
+                      (p?`<div class="bed-hn">${p.hn}</div><div class="bed-level">Level ${p.todayLevel||'-'}</div>`:'<div class="bed-empty">Empty</div>');
+        div.addEventListener('click',()=> onBedClick(i,p));
+        bedsEl.appendChild(div);
+      }
+    }
+
+    async function fetchPatients(){
+      const q = await db.collection('patients').get();
+      const map = {};
+      q.forEach(d=>map[d.id]=d.data());
+      // for each patient, fetch today's record
+      const today = new Date().toISOString().slice(0,10);
+      for(const id of Object.keys(map)){
+        const rec = await db.collection('dailyRecords').doc(`${id}_${today}`).get();
+        map[id].todayLevel = rec.exists?rec.data().level:null;
+      }
+      return map;
+    }
+
+    function showModal(contentHtml){
+      modal.classList.remove('hidden');
+      modal.innerHTML = `<div class="modal-content">${contentHtml}<button id="closeModal">Close</button></div>`;
+      qs('#closeModal').addEventListener('click',()=>modal.classList.add('hidden'));
+    }
+
+    async function onBedClick(bedNumber, patient){
+      if(!patient){
+        // admit form
+        showModal(renderAdmissionForm(bedNumber));
+        bindAdmissionForm(bedNumber);
+      } else {
+        // patient detail
+        const today = new Date().toISOString().slice(0,10);
+        const recSnap = await db.collection('dailyRecords').doc(`${patient.id}_${today}`).get();
+        const rec = recSnap.exists?recSnap.data():null;
+        showModal(renderPatientDetail(patient, rec));
+        bindPatientDetail(patient);
+      }
+    }
+
+    function renderAdmissionForm(bedNumber){
+      return `
+        <h2>Admit to Bed ${bedNumber}</h2>
+        <form id="admitForm">
+          <label>HN: <input name="hn" required></label>
+          <label>Gender: <select name="gender"><option>M</option><option>F</option></select></label>
+          <label>Specialty: <select name="specialty">${config.specialtyOptions.map(s=>`<option>${s.label}</option>`).join('')}</select></label>
+          <label>Admission Date: <input type="date" name="admissionDate" value="${new Date().toISOString().slice(0,10)}"></label>
+          <button type="submit">Admit</button>
+        </form>`;
+    }
+
+    function bindAdmissionForm(bedNumber){
+      qs('#admitForm').addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        const f = new FormData(e.target);
+        const doc = {hn: f.get('hn'), gender: f.get('gender'), specialty: f.get('specialty'), admissionDate: f.get('admissionDate'), dischargeDate: null, bedNumber: bedNumber, active: true};
+        const pRef = await db.collection('patients').add(doc);
+        await fetchAndRender();
+        modal.classList.add('hidden');
+      })
+    }
+
+    function renderPatientDetail(patient, rec){
+      const mmrcHtml = config.mmrcItems.map((it,i)=>`<label><input type="checkbox" name="mmrc" value="${i}" ${rec&&rec.mmrc&&rec.mmrc[i]? 'checked':''}> ${it.label}</label>`).join('<br>');
+      return `
+        <h2>Patient ${patient.hn} (Bed ${patient.bedNumber})</h2>
+        <div>Gender: ${patient.gender} | Specialty: ${patient.specialty} | Admission: ${patient.admissionDate}</div>
+        <form id="dailyForm">
+          <label>Level: <select name="level" required>
+            <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
+          </select></label>
+          <label>IMS: <input type="number" name="ims" min="0" max="10" value="${rec?rec.ims:0}"></label>
+          <div class="mmrc">${mmrcHtml}</div>
+          <label>Exercise: <select name="exercise">${config.exerciseOptions.map(o=>`<option>${o.label}</option>`).join('')}</select></label>
+          <button type="submit">Save Today's Entry</button>
+        </form>
+        <button id="dischargeBtn">Discharge</button>
+      `;
+    }
+
+    function bindPatientDetail(patient){
+      qs('#dailyForm').addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        const f = new FormData(e.target);
+        const level = parseInt(f.get('level'));
+        const ims = parseInt(f.get('ims'))||0;
+        const mmrc = Array.from(e.target.querySelectorAll('input[name="mmrc"]')).map((cb,i)=>cb.checked);
+        const exercise = f.get('exercise');
+        const today = new Date().toISOString().slice(0,10);
+        await db.collection('dailyRecords').doc(`${patient.id}_${today}`).set({patientId: patient.id, date: today, level, ims, mmrc, exercise, savedAt: firebase.firestore.FieldValue.serverTimestamp()});
+        await fetchAndRender();
+        modal.classList.add('hidden');
+      });
+      qs('#dischargeBtn').addEventListener('click', async ()=>{
+        await db.collection('patients').doc(patient.id).update({dischargeDate: new Date().toISOString().slice(0,10), active:false});
+        await fetchAndRender();
+        modal.classList.add('hidden');
+      });
+    }
+
+    async function fetchAndRender(){
+      const patients = await fetchPatients();
+      renderBeds(patients);
+    }
+
+    exportBtn.addEventListener('click', async ()=>{
+      // simple export of patients
+      const q = await db.collection('patients').get();
+      const data = [];
+      q.forEach(d=>{ const p=d.data(); data.push(p); });
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Patients');
+      XLSX.writeFile(wb, 'icu_patients.xlsx');
+    });
+
+    filterActive.addEventListener('change', fetchAndRender);
+
+    (async function init(){
+      try{
+        await ensureDefaultConfig();
+        await loadConfig();
+        await fetchAndRender();
+      }catch(e){console.error(e);}
+    })();
+  </script>
+</body>
+</html>
