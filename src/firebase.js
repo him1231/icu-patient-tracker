@@ -10,5 +10,10 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 }
 
+if (!firebaseConfig.apiKey) {
+  console.error('Firebase config missing! VITE_FIREBASE_API_KEY is undefined.')
+}
+
 const app = initializeApp(firebaseConfig)
 export const db = getFirestore(app)
+

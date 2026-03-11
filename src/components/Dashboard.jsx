@@ -35,21 +35,27 @@ export default function Dashboard() {
 
   const loadData = async () => {
     setLoading(true)
-    await ensureDefaultConfig()
-    const q = query(collection(db, 'patients'), where('active', '==', true))
-    const snap = await getDocs(q)
-    const pts = {}
-    snap.forEach(d => { pts[d.data().bedNumber] = { id: d.id, ...d.data() } })
-    setPatients(pts)
-    // load today's records
-    const recSnap = await getDocs(collection(db, 'dailyRecords'))
-    const recs = {}
-    recSnap.forEach(d => {
-      const data = d.data()
-      if (data.date === TODAY) recs[data.patientId] = data
-    })
-    setTodayRecords(recs)
-    setLoading(false)
+    try {
+      await ensureDefaultConfig()
+      const q = query(collection(db, 'patients'), where('active', '==', true))
+      const snap = await getDocs(q)
+      const pts = {}
+      snap.forEach(d => { pts[d.data().bedNumber] = { id: d.id, ...d.data() } })
+      setPatients(pts)
+      // load today's records
+      const recSnap = await getDocs(collection(db, 'dailyRecords'))
+      const recs = {}
+      recSnap.forEach(d => {
+        const data = d.data()
+        if (data.date === TODAY) recs[data.patientId] = data
+      })
+      setTodayRecords(recs)
+    } catch (err) {
+      console.error('載入失敗:', err)
+      alert('載入失敗，請檢查網絡或 Firebase 設定：' + err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { loadData() }, [])
