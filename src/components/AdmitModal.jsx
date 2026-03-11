@@ -4,26 +4,37 @@ import { db } from '../firebase'
 
 export default function AdmitModal({ bedNum, onClose }) {
   const [form, setForm] = useState({
-    hn: '', gender: 'M', specialty: '', admissionDate: new Date().toISOString().split('T')[0]
+    hn: '', gender: 'M', specialty: '', diagnosis: '', diagnosisOther: '',
+    admissionDate: new Date().toISOString().split('T')[0]
   })
   const [specialties, setSpecialties] = useState([])
+  const [diagnoses, setDiagnoses] = useState([])
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    getDoc(doc(db, 'config', 'specialtyOptions')).then(s => {
+    Promise.all([
+      getDoc(doc(db, 'config', 'specialtyOptions')),
+      getDoc(doc(db, 'config', 'diagnosisOptions')),
+    ]).then(([s, d]) => {
       if (s.exists()) setSpecialties(s.data().options || [])
+      if (d.exists()) setDiagnoses(d.data().options || [])
     })
   }, [])
+
+  const isOtherSelected = diagnoses.find(d => d.id === '__other__' && d.label === form.diagnosis || form.diagnosis === 'Other')
+    || form.diagnosis === '__other__'
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!form.hn.trim()) return alert('Please enter HN Number')
+    const finalDiagnosis = isOtherSelected ? (form.diagnosisOther.trim() || 'Other') : form.diagnosis
     setSaving(true)
     const id = `${form.hn.trim()}_${Date.now()}`
     await setDoc(doc(db, 'patients', id), {
       hn: form.hn.trim(),
       gender: form.gender,
       specialty: form.specialty,
+      diagnosis: finalDiagnosis,
       admissionDate: form.admissionDate,
       dischargeDate: null,
       bedNumber: bedNum,
@@ -55,6 +66,18 @@ export default function AdmitModal({ bedNum, onClose }) {
               <option value="">-- Select --</option>
               {specialties.map(s=><option key={s.id} value={s.label}>{s.label}</option>)}
             </select>
+          </div>
+          <div className="form-group">
+            <label>Diagnosis</label>
+            <select value={form.diagnosis} onChange={e=>setForm({...form,diagnosis:e.target.value,diagnosisOther:''})}>
+              <option value="">-- Select --</option>
+              {diagnoses.map(d=><option key={d.id} value={d.isOther ? '__other__' : d.label}>{d.label}</option>)}
+            </select>
+            {isOtherSelected && (
+              <input style={{marginTop:'8px'}} value={form.diagnosisOther}
+                onChange={e=>setForm({...form,diagnosisOther:e.target.value})}
+                placeholder="Please specify diagnosis..." />
+            )}
           </div>
           <div className="form-group">
             <label>Admission Date</label>

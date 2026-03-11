@@ -76,6 +76,7 @@ export default function PatientModal({ bedNum, patient, todayRecord, onClose, on
         <div className="patient-info">
           <p><strong>HN:</strong> {patient.hn} &nbsp; <strong>Gender:</strong> {patient.gender}</p>
           <p><strong>Specialty:</strong> {patient.specialty} &nbsp; <strong>Admission:</strong> {patient.admissionDate}</p>
+          {patient.diagnosis && <p><strong>Diagnosis:</strong> {patient.diagnosis}</p>}
         </div>
         <div className="form-group">
           <label>Level</label>

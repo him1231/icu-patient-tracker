@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 
-function ConfigSection({ title, configKey, fieldKey }) {
+function ConfigSection({ title, configKey, fieldKey, protectedId }) {
   const [items, setItems] = useState([])
   const [newLabel, setNewLabel] = useState('')
   const [editId, setEditId] = useState(null)
@@ -27,6 +27,7 @@ function ConfigSection({ title, configKey, fieldKey }) {
   }
 
   const deleteItem = (id) => {
+    if (id === protectedId) return alert('This item cannot be deleted.')
     if (confirm('Delete this item?')) save(items.filter(i => i.id !== id))
   }
 
@@ -55,7 +56,8 @@ function ConfigSection({ title, configKey, fieldKey }) {
                 <span>{item.label}</span>
                 <div className="item-actions">
                   <button className="btn-edit" onClick={() => { setEditId(item.id); setEditLabel(item.label) }}>Edit</button>
-                  <button className="btn-delete" onClick={() => deleteItem(item.id)}>Delete</button>
+                  <button className="btn-delete" onClick={() => deleteItem(item.id)}
+                    style={item.id === protectedId ? {opacity:0.4,cursor:'not-allowed'} : {}}>Delete</button>
                 </div>
               </>
             )}
@@ -77,6 +79,7 @@ export default function AdminPage() {
       <ConfigSection title="MMRC Items" configKey="mmrcItems" fieldKey="items" />
       <ConfigSection title="Exercise Options" configKey="exerciseOptions" fieldKey="options" />
       <ConfigSection title="Specialty" configKey="specialtyOptions" fieldKey="options" />
+      <ConfigSection title="Diagnosis" configKey="diagnosisOptions" fieldKey="options" protectedId="__other__" />
     </div>
   )
 }
