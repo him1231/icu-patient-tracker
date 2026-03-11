@@ -111,8 +111,19 @@ export default function PatientModal({ bedNum, patient, todayRecord, onClose, on
               {MMRC_ROWS.map((row, i) => (
                 <tr key={row}>
                   <td className="mmrc-label">{row}</td>
-                  <td><input type="number" min="0" max="5" value={form.mmrc[i*2] ?? 0} onChange={e=>setMmrc(i*2, e.target.value)} className="mmrc-score-input" /></td>
-                  <td><input type="number" min="0" max="5" value={form.mmrc[i*2+1] ?? 0} onChange={e=>setMmrc(i*2+1, e.target.value)} className="mmrc-score-input" /></td>
+                  {[0, 1].map(side => (
+                    <td key={side}>
+                      <div className="mmrc-btn-group">
+                        {[0,1,2,3,4,5].map(score => (
+                          <button key={score} type="button"
+                            className={`mmrc-btn${form.mmrc[i*2+side] === score ? ' active' : ''}`}
+                            onClick={() => setMmrc(i*2+side, score)}>
+                            {score}
+                          </button>
+                        ))}
+                      </div>
+                    </td>
+                  ))}
                 </tr>
               ))}
             </tbody>
