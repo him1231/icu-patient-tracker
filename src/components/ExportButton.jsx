@@ -5,6 +5,19 @@ import * as XLSX from 'xlsx'
 
 const thisMonth = new Date().toISOString().slice(0, 7) // YYYY-MM
 
+function addDays(dateStr, days) {
+  if (!dateStr) return ''
+  const d = new Date(`${dateStr}T00:00:00`)
+  d.setDate(d.getDate() + days)
+  return d.toISOString().split('T')[0]
+}
+
+function patientStatus(patient) {
+  if (!patient.active) return 'Discharged'
+  if (patient.offProgram) return 'Off Program'
+  return 'On Program'
+}
+
 export default function ExportButton() {
   const [filter, setFilter] = useState('all')
   const [monthlyMonth, setMonthlyMonth] = useState(thisMonth)
@@ -34,16 +47,25 @@ export default function ExportButton() {
         const recs = (allRecs[p.id] || []).sort((a, b) => a.date.localeCompare(b.date))
         const first = recs[0]
         const last = recs[recs.length - 1]
-        const admDate = p.admissionDate ? new Date(p.admissionDate) : null
-        const disDate = p.dischargeDate ? new Date(p.dischargeDate) : new Date()
+        const admDate = p.admissionDate ? new Date(`${p.admissionDate}T00:00:00`) : null
+        const disDate = p.dischargeDate ? new Date(`${p.dischargeDate}T00:00:00`) : new Date()
         const los = admDate ? Math.ceil((disDate - admDate) / 86400000) : ''
+        const intubationDays = recs.filter(r => r.intubated).length
+
         return {
           'HN Number': p.hn,
           'Gender': p.gender,
           'Specialty': p.specialty,
+          'Diagnosis': p.diagnosis || '',
+          'CFS': p.cfs ?? '',
+          'Status': patientStatus(p),
+          'Bed Number': p.bedNumber ?? '',
           'Admission Date': p.admissionDate,
+          'Off Program Date': p.offProgramDate || '',
           'Discharge Date': p.dischargeDate || '',
           'Length of Stay (days)': los,
+          'Number of Sessions': recs.length,
+          'Days of Intubation': intubationDays,
           'Initial Level': first?.level || '',
           'Initial IMS': first?.ims ?? '',
           'Initial MRCSS': first ? mmrcCount(first.mmrc) : '',
@@ -51,7 +73,11 @@ export default function ExportButton() {
           'Final IMS': last?.ims ?? '',
           'Final MRCSS': last ? mmrcCount(last.mmrc) : '',
           'Best Exercise': last?.exercise || '',
-          'Days of Level 4': recs.filter(r => r.level === 4).length
+          'Days of Level 4': recs.filter(r => r.level === 4).length,
+          'Post Discharge +30d': addDays(p.dischargeDate, 30),
+          'Post Discharge +60d': addDays(p.dischargeDate, 60),
+          'Post Discharge +90d': addDays(p.dischargeDate, 90),
+          'Post Discharge +180d': addDays(p.dischargeDate, 180),
         }
       })
 
@@ -101,28 +127,25 @@ export default function ExportButton() {
         }
       }
 
-      // Build Level rows
       const levelRows = [1, 2, 3, 4].map(l => ({
         'Category': 'Level',
         'Item': `Level ${l}`,
         'Cases (unique patients)': levelStats[l].cases.size,
-        'Sessions (record days)': levelStats[l].sessions
+        'Sessions (record days)': levelStats[l].sessions,
       }))
 
-      // Build Exercise rows
       const exerciseRows = Object.entries(exerciseStats)
         .sort((a, b) => a[0].localeCompare(b[0]))
         .map(([ex, stat]) => ({
           'Category': 'Exercise',
           'Item': ex,
           'Cases (unique patients)': stat.cases.size,
-          'Sessions (record days)': stat.sessions
+          'Sessions (record days)': stat.sessions,
         }))
 
       const allRows = [...levelRows, { Category: '', Item: '', 'Cases (unique patients)': '', 'Sessions (record days)': '' }, ...exerciseRows]
 
       const ws = XLSX.utils.json_to_sheet(allRows)
-      // Set column widths
       ws['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 24 }, { wch: 22 }]
 
       const wb = XLSX.utils.book_new()
@@ -137,7 +160,6 @@ export default function ExportButton() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '8px 0' }}>
-      {/* Patient Report row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
         <div className="filter-buttons">
           {['all', 'active', 'discharged'].map(f => (
@@ -151,7 +173,6 @@ export default function ExportButton() {
         </button>
       </div>
 
-      {/* Monthly Stats row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
         <input
           type="month"
@@ -159,8 +180,7 @@ export default function ExportButton() {
           onChange={e => setMonthlyMonth(e.target.value)}
           style={{ padding: '6px 10px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '0.88rem' }}
         />
-        <button className="btn btn-success" onClick={handleMonthlyExport} disabled={monthlyLoading}
-          style={{ background: '#6b46c1' }}>
+        <button className="btn btn-success" onClick={handleMonthlyExport} disabled={monthlyLoading} style={{ background: '#6b46c1' }}>
           {monthlyLoading ? '產生中...' : '📅 匯出月統計'}
         </button>
       </div>

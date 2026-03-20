@@ -11,10 +11,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .bed-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
 .bed-card.empty { border-color: #cbd5e0; background: #f7fafc; }
 .bed-card.occupied { border-color: #4299e1; background: #ebf8ff; }
+.bed-card.off-program { border-color: #d69e2e; background: #fffaf0; }
+.bed-card.intubated { box-shadow: inset 0 0 0 2px rgba(229, 62, 62, 0.15); }
 .bed-card.discharged { border-color: #68d391; background: #f0fff4; }
 .bed-number { font-size: 0.75rem; color: #718096; font-weight: 600; text-transform: uppercase; }
 .bed-hn { font-size: 0.95rem; font-weight: 700; color: #2d3748; margin-top: 4px; }
-.bed-level { font-size: 0.8rem; background: #2b6cb0; color: white; padding: 2px 8px; border-radius: 12px; display: inline-block; margin-top: 6px; }
+.bed-chip-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 6px; }
+.bed-level { font-size: 0.8rem; background: #2b6cb0; color: white; padding: 2px 8px; border-radius: 12px; display: inline-block; }
+.bed-mini-chip { font-size: 0.72rem; padding: 2px 8px; border-radius: 999px; font-weight: 700; background: #edf2f7; color: #4a5568; }
+.bed-mini-chip.warning { background: #fef3c7; color: #975a16; }
+.bed-mini-chip.danger { background: #fed7d7; color: #c53030; }
 .bed-empty-text { font-size: 0.8rem; color: #a0aec0; }
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 16px; }
 .modal { background: white; border-radius: 12px; padding: 24px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
@@ -26,9 +32,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #4a5568; margin-bottom: 6px; }
 .form-group input, .form-group select { width: 100%; padding: 8px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
 .form-group input:focus, .form-group select:focus { border-color: #4299e1; }
+.form-help { margin-top: 6px; font-size: 0.78rem; color: #718096; }
+.info-banner { border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; font-size: 0.86rem; line-height: 1.45; }
+.info-banner.warning { background: #fffaf0; border: 1px solid #f6ad55; color: #975a16; }
 .level-buttons { display: flex; gap: 8px; }
 .level-btn { flex: 1; padding: 8px; border: 2px solid #e2e8f0; background: white; border-radius: 8px; cursor: pointer; font-weight: 700; transition: all 0.2s; }
 .level-btn.active { background: #2b6cb0; border-color: #2b6cb0; color: white; }
+.toggle-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.toggle-btn { flex: 1; min-width: 160px; padding: 10px 14px; border: 2px solid #e2e8f0; background: white; border-radius: 8px; cursor: pointer; font-weight: 700; color: #4a5568; transition: all 0.2s; }
+.toggle-btn.active { border-color: #2b6cb0; background: #2b6cb0; color: white; }
+.toggle-btn.active.danger { border-color: #c53030; background: #c53030; }
 .ims-control { display: flex; align-items: center; gap: 10px; }
 .ims-control button { width: 32px; height: 32px; border: 2px solid #4299e1; background: white; color: #2b6cb0; border-radius: 6px; cursor: pointer; font-size: 1.1rem; font-weight: 700; }
 .ims-control span { font-size: 1.3rem; font-weight: 700; min-width: 30px; text-align: center; }
@@ -44,14 +57,28 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .btn-danger:hover { background: #c53030; }
 .btn-secondary { background: #718096; color: white; }
 .btn-secondary:hover { background: #4a5568; }
+.btn-warning { background: #d69e2e; color: white; }
+.btn-warning:hover { background: #b7791f; }
 .btn-outline { background: transparent; border: 2px solid #2b6cb0; color: #2b6cb0; }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; flex-wrap: wrap; }
 .export-section { padding: 0 20px 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.filter-buttons { display: flex; gap: 6px; }
+.filter-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
 .filter-btn { padding: 6px 14px; border: 2px solid #4299e1; background: white; color: #2b6cb0; border-radius: 20px; cursor: pointer; font-size: 0.82rem; font-weight: 600; transition: all 0.2s; }
 .filter-btn.active { background: #2b6cb0; color: white; }
 .admin-section { background: white; border-radius: 10px; padding: 20px; margin: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
 .admin-section h3 { color: #2b6cb0; margin-bottom: 14px; font-size: 1rem; }
+.patient-admin-toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.patient-search { flex: 1; min-width: 220px; padding: 8px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.88rem; }
+.patient-admin-list { display: flex; flex-direction: column; gap: 10px; }
+.patient-admin-item { border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center; }
+.patient-admin-main { flex: 1; min-width: 220px; }
+.patient-admin-title-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 4px; }
+.patient-admin-meta { font-size: 0.84rem; color: #718096; margin-top: 2px; }
+.patient-admin-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.status-chip { font-size: 0.74rem; padding: 3px 10px; border-radius: 999px; font-weight: 700; }
+.status-chip.active { background: #c6f6d5; color: #276749; }
+.status-chip.off-program { background: #fef3c7; color: #975a16; }
+.status-chip.discharged { background: #e2e8f0; color: #4a5568; }
 .item-list { list-style: none; }
 .item-list li { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 6px; font-size: 0.88rem; }
 .item-actions { display: flex; gap: 6px; }
@@ -62,7 +89,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .add-item-form input { flex: 1; padding: 7px 10px; border: 1.5px solid #e2e8f0; border-radius: 6px; font-size: 0.85rem; }
 .bed-card.transfer-source { border-color: #805ad5; background: #faf5ff; box-shadow: 0 0 0 3px #d6bcfa; }
 .bed-card.transfer-target { border-color: #48bb78; background: #f0fff4; border-style: dashed; }
-.bed-transfer-btn { font-size: 0.75rem; color: #805ad5; font-weight: 700; margin-top: 4px; cursor: pointer; padding: 1px 6px; border-radius: 4px; background: #faf5ff; border: 1px solid #d6bcfa; display: inline-block; align-self: flex-start; }
+.bed-transfer-btn { font-size: 0.75rem; color: #805ad5; font-weight: 700; margin-top: 6px; cursor: pointer; padding: 1px 6px; border-radius: 4px; background: #faf5ff; border: 1px solid #d6bcfa; display: inline-block; align-self: flex-start; }
 .bed-transfer-btn:hover { background: #805ad5; color: white; }
 .transfer-banner { background: #805ad5; color: white; padding: 10px 20px; font-size: 0.9rem; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .mmrc-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
@@ -78,4 +105,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   .bed-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; padding: 12px; }
   .modal { padding: 16px; }
   .mmrc-grid { grid-template-columns: 1fr; }
+  .patient-admin-item { flex-direction: column; align-items: stretch; }
+  .patient-admin-actions { width: 100%; }
+  .patient-admin-actions .btn { flex: 1; }
+  .toggle-btn { min-width: 0; }
 }
