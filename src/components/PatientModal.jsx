@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, query, setDoc, updateDoc, where } from 'firebase/firestore'
 import { db } from '../firebase'
 
 const TODAY = new Date().toISOString().split('T')[0]
@@ -40,12 +40,6 @@ const defaultForm = () => ({
   intubated: false,
 })
 
-function addDays(dateStr, days) {
-  const d = new Date(`${dateStr}T00:00:00`)
-  d.setDate(d.getDate() + days)
-  return d.toISOString().split('T')[0]
-}
-
 function normalizeMmrc(mmrc) {
   if (!Array.isArray(mmrc)) return Array(12).fill(0)
   return Array.from({ length: 12 }, (_, i) => {
@@ -65,12 +59,23 @@ function recordToForm(record) {
   }
 }
 
+async function findLatestPreviousRecord(patientId, beforeDate) {
+  const snap = await getDocs(query(collection(db, 'dailyRecords'), where('patientId', '==', patientId)))
+  const records = snap.docs
+    .map(d => d.data())
+    .filter(record => record.date && record.date < beforeDate)
+    .sort((a, b) => b.date.localeCompare(a.date))
+
+  return records[0] || null
+}
+
 export default function PatientModal({ bedNum, patient, todayRecord, onClose, onTransfer }) {
   const [config, setConfig] = useState({ exercise: [] })
   const [recordDate, setRecordDate] = useState(TODAY)
   const [form, setForm] = useState(recordToForm(todayRecord))
   const [cfs, setCfs] = useState(patient?.cfs ?? '')
   const [recordLoading, setRecordLoading] = useState(false)
+  const [prefillSourceDate, setPrefillSourceDate] = useState(null)
   const [saving, setSaving] = useState(false)
   const [discharging, setDischarging] = useState(false)
   const [offProgramming, setOffProgramming] = useState(false)
@@ -99,24 +104,26 @@ export default function PatientModal({ bedNum, patient, todayRecord, onClose, on
 
         if (currentSnap.exists()) {
           setForm(recordToForm(currentSnap.data()))
+          setPrefillSourceDate(null)
           return
         }
 
-        const previousDate = addDays(date, -1)
-        if (previousDate >= patient.admissionDate) {
-          const prevSnap = await getDoc(doc(db, 'dailyRecords', `${patient.id}_${previousDate}`))
-          if (cancelled) return
-          if (prevSnap.exists()) {
-            setForm(recordToForm(prevSnap.data()))
-            return
-          }
+        const previousRecord = await findLatestPreviousRecord(patient.id, date)
+        if (cancelled) return
+
+        if (previousRecord) {
+          setForm(recordToForm(previousRecord))
+          setPrefillSourceDate(previousRecord.date)
+          return
         }
 
         setForm(defaultForm())
+        setPrefillSourceDate(null)
       } catch (err) {
         if (!cancelled) {
           console.error('Failed to load record:', err)
           setForm(defaultForm())
+          setPrefillSourceDate(null)
         }
       } finally {
         if (!cancelled) setRecordLoading(false)
@@ -246,6 +253,7 @@ export default function PatientModal({ bedNum, patient, todayRecord, onClose, on
           />
           <div className="form-help">
             {isBackfill ? `補錄 ${recordDate} data` : 'Today record'}
+            {prefillSourceDate && ` · cloned from ${prefillSourceDate}`}
           </div>
         </div>
 
