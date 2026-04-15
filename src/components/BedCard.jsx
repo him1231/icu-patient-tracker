@@ -24,11 +24,17 @@ export default function BedCard({ bedNumber, patient, todayRecord, onClick, tran
           <div className="bed-hn">{patient.hn}</div>
           <div className="bed-chip-row">
             {todaySummary && <div className="bed-level">{todaySummary}</div>}
-            {todayRecord?.intubated && <div className="bed-mini-chip danger">ETT</div>}
             {patient.offProgram && <div className="bed-mini-chip warning">Off Program</div>}
           </div>
-          {!transferMode && onTransfer && (
-            <div className="bed-transfer-btn" onClick={e => { e.stopPropagation(); onTransfer() }}>⇄</div>
+          {(todayRecord?.intubated || (!transferMode && onTransfer)) && (
+            <div className="bed-bottom-row">
+              <div>
+                {todayRecord?.intubated && <div className="bed-mini-chip danger">ETT</div>}
+              </div>
+              {!transferMode && onTransfer && (
+                <div className="bed-transfer-btn" onClick={e => { e.stopPropagation(); onTransfer() }}>⇄</div>
+              )}
+            </div>
           )}
         </>
       ) : (
