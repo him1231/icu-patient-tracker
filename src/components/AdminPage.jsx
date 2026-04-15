@@ -2,6 +2,18 @@ import { useState, useEffect, useMemo } from 'react'
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 
+const CFS_OPTIONS = [
+  [1, '1. Very fit'],
+  [2, '2. Fit'],
+  [3, '3. Managing well'],
+  [4, '4. Living with very mild frailty'],
+  [5, '5. Living with mild frailty'],
+  [6, '6. Living with moderate frailty'],
+  [7, '7. Living with severe frailty'],
+  [8, '8. Living with very severe frailty'],
+  [9, '9. Terminally ill'],
+]
+
 async function bumpLastEdit() {
   await setDoc(doc(db, 'meta', 'lastEdit'), { updatedAt: Date.now() })
 }
@@ -96,12 +108,175 @@ function statusOf(patient) {
   return 'active'
 }
 
+function EditAdmissionModal({ patient, patients, onClose, onSaved }) {
+  const [specialties, setSpecialties] = useState([])
+  const [diagnoses, setDiagnoses] = useState([])
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState({
+    hn: patient?.hn || '',
+    gender: patient?.gender || 'M',
+    specialty: patient?.specialty || '',
+    diagnosis: '',
+    diagnosisOther: '',
+    cfs: patient?.cfs ?? '',
+    admissionDate: patient?.admissionDate || new Date().toISOString().split('T')[0],
+    bedNumber: patient?.bedNumber != null ? String(patient.bedNumber) : '',
+  })
+
+  useEffect(() => {
+    Promise.all([
+      getDoc(doc(db, 'config', 'specialtyOptions')),
+      getDoc(doc(db, 'config', 'diagnosisOptions')),
+    ]).then(([s, d]) => {
+      const nextSpecialties = s.exists() ? (s.data().options || []) : []
+      const nextDiagnoses = d.exists() ? (d.data().options || []) : []
+      setSpecialties(nextSpecialties)
+      setDiagnoses(nextDiagnoses)
+
+      const hasKnownDiagnosis = nextDiagnoses.some(item => !item.isOther && item.label === (patient?.diagnosis || ''))
+      setForm((current) => ({
+        ...current,
+        specialty: patient?.specialty || '',
+        diagnosis: hasKnownDiagnosis ? (patient?.diagnosis || '') : ((patient?.diagnosis || '') ? '__other__' : ''),
+        diagnosisOther: hasKnownDiagnosis ? '' : (patient?.diagnosis || ''),
+      }))
+    })
+  }, [patient])
+
+  const isOtherSelected = form.diagnosis === '__other__'
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+
+    const hn = form.hn.trim()
+    if (!hn) return alert('Please enter HN Number')
+
+    const bedNumber = parseInt(form.bedNumber, 10)
+    if (!Number.isInteger(bedNumber) || bedNumber < 1 || bedNumber > 32) {
+      return alert('Please enter a valid bed number between 1 and 32.')
+    }
+
+    const occupied = patients.find(p => p.active && p.id !== patient.id && Number(p.bedNumber) === bedNumber)
+    if (occupied) {
+      return alert(`Bed ${bedNumber} is occupied by ${occupied.hn}.`)
+    }
+
+    const finalDiagnosis = isOtherSelected
+      ? (form.diagnosisOther.trim() || 'Other')
+      : form.diagnosis
+
+    setSaving(true)
+    try {
+      await updateDoc(doc(db, 'patients', patient.id), {
+        hn,
+        gender: form.gender,
+        specialty: form.specialty,
+        diagnosis: finalDiagnosis,
+        cfs: form.cfs === '' ? null : Number(form.cfs),
+        admissionDate: form.admissionDate,
+        bedNumber,
+      })
+      await bumpLastEdit()
+      onSaved()
+    } catch (err) {
+      alert('Update failed: ' + err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal">
+        <h2>Edit Admission Information — {patient.hn}</h2>
+        <div className="patient-info">
+          <p><strong>Status:</strong> {statusOf(patient) === 'active' ? 'On Program' : statusOf(patient) === 'off-program' ? 'Off Program' : 'Discharged'}</p>
+          <p><strong>Document ID:</strong> {patient.id}</p>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>HN Number</label>
+            <input value={form.hn} onChange={e => setForm({ ...form, hn: e.target.value })} placeholder="HN Number" required />
+          </div>
+
+          <div className="form-group">
+            <label>Gender</label>
+            <select value={form.gender} onChange={e => setForm({ ...form, gender: e.target.value })}>
+              <option value="M">Male (M)</option>
+              <option value="F">Female (F)</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>Bed Number</label>
+            <input
+              type="number"
+              min="1"
+              max="32"
+              value={form.bedNumber}
+              onChange={e => setForm({ ...form, bedNumber: e.target.value })}
+              placeholder="1 - 32"
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Specialty</label>
+            <select value={form.specialty} onChange={e => setForm({ ...form, specialty: e.target.value })}>
+              <option value="">-- Select --</option>
+              {specialties.map(s => <option key={s.id} value={s.label}>{s.label}</option>)}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>Diagnosis</label>
+            <select value={form.diagnosis} onChange={e => setForm({ ...form, diagnosis: e.target.value, diagnosisOther: '' })}>
+              <option value="">-- Select --</option>
+              {diagnoses.map(d => <option key={d.id} value={d.isOther ? '__other__' : d.label}>{d.label}</option>)}
+            </select>
+            {isOtherSelected && (
+              <input
+                style={{ marginTop: '8px' }}
+                value={form.diagnosisOther}
+                onChange={e => setForm({ ...form, diagnosisOther: e.target.value })}
+                placeholder="Please specify diagnosis..."
+              />
+            )}
+          </div>
+
+          <div className="form-group">
+            <label>CFS — Clinical Frailty Scale</label>
+            <select value={form.cfs} onChange={e => setForm({ ...form, cfs: e.target.value === '' ? '' : parseInt(e.target.value) })}>
+              <option value="">-- Select --</option>
+              {CFS_OPTIONS.map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>Admission Date</label>
+            <input type="date" value={form.admissionDate} onChange={e => setForm({ ...form, admissionDate: e.target.value })} required />
+          </div>
+
+          <div className="modal-actions">
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 function PatientAdminSection() {
   const [patients, setPatients] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [busyId, setBusyId] = useState(null)
+  const [editingPatient, setEditingPatient] = useState(null)
 
   const loadPatients = async () => {
     setLoading(true)
@@ -251,6 +426,7 @@ function PatientAdminSection() {
                   </div>
                 </div>
                 <div className="patient-admin-actions">
+                  <button className="btn btn-outline" onClick={() => setEditingPatient(patient)} disabled={isBusy}>Edit Admission</button>
                   {status === 'active' && (
                     <button className="btn btn-warning" onClick={() => markOffProgram(patient)} disabled={isBusy}>Off Program</button>
                   )}
@@ -266,6 +442,18 @@ function PatientAdminSection() {
           })}
           {!filteredPatients.length && <div className="loading" style={{ padding: '16px 0' }}>No patients found.</div>}
         </div>
+      )}
+
+      {editingPatient && (
+        <EditAdmissionModal
+          patient={editingPatient}
+          patients={patients}
+          onClose={() => setEditingPatient(null)}
+          onSaved={async () => {
+            setEditingPatient(null)
+            await loadPatients()
+          }}
+        />
       )}
     </div>
   )
