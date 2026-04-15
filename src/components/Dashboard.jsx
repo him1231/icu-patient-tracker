@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { collection, getDocs, doc, getDoc, setDoc, updateDoc, query, where } from 'firebase/firestore'
+import { collection, getDocs, doc, getDoc, setDoc, query, where } from 'firebase/firestore'
 import { db } from '../firebase'
 import BedCard from './BedCard'
 import PatientModal from './PatientModal'
@@ -74,7 +74,7 @@ export default function Dashboard() {
           }
           lastEditRef.current = remote
         }
-      } catch (e) { /* silent */ }
+      } catch { /* silent */ }
     }, POLL_INTERVAL)
     return () => clearInterval(interval)
   }, [])
