@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { collection, doc, getDoc, getDocs, query, setDoc, updateDoc, where } from 'firebase/firestore'
+import { collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where } from 'firebase/firestore'
 import { db } from '../firebase'
 
 const TODAY = new Date().toISOString().split('T')[0]
@@ -76,10 +76,12 @@ export default function PatientModal({ bedNum, patient, todayRecord, onClose, on
   const [cfs, setCfs] = useState(patient?.cfs ?? '')
   const [recordLoading, setRecordLoading] = useState(false)
   const [prefillSourceDate, setPrefillSourceDate] = useState(null)
+  const [recordExists, setRecordExists] = useState(Boolean(todayRecord))
   const [saving, setSaving] = useState(false)
   const [discharging, setDischarging] = useState(false)
   const [offProgramming, setOffProgramming] = useState(false)
   const [resuming, setResuming] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     getDoc(doc(db, 'config', 'exerciseOptions')).then(e => {
@@ -105,6 +107,7 @@ export default function PatientModal({ bedNum, patient, todayRecord, onClose, on
         if (currentSnap.exists()) {
           setForm(recordToForm(currentSnap.data()))
           setPrefillSourceDate(null)
+          setRecordExists(true)
           return
         }
 
@@ -114,16 +117,19 @@ export default function PatientModal({ bedNum, patient, todayRecord, onClose, on
         if (previousRecord) {
           setForm(recordToForm(previousRecord))
           setPrefillSourceDate(previousRecord.date)
+          setRecordExists(false)
           return
         }
 
         setForm(defaultForm())
         setPrefillSourceDate(null)
+        setRecordExists(false)
       } catch (err) {
         if (!cancelled) {
           console.error('Failed to load record:', err)
           setForm(defaultForm())
           setPrefillSourceDate(null)
+          setRecordExists(false)
         }
       } finally {
         if (!cancelled) setRecordLoading(false)
@@ -209,6 +215,20 @@ export default function PatientModal({ bedNum, patient, todayRecord, onClose, on
       alert('Off program failed: ' + err.message)
     } finally {
       setOffProgramming(false)
+    }
+  }
+
+  const handleDeleteEntry = async () => {
+    const label = isBackfill ? recordDate : 'today'
+    if (!confirm(`Delete ${label} entry for ${patient.hn}? This cannot be undone.`)) return
+    setDeleting(true)
+    try {
+      await deleteDoc(doc(db, 'dailyRecords', `${patient.id}_${recordDate}`))
+      onClose(true)
+    } catch (err) {
+      alert('Delete failed: ' + err.message)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -376,6 +396,12 @@ export default function PatientModal({ bedNum, patient, todayRecord, onClose, on
           ) : (
             <button className="btn btn-warning" onClick={handleOffProgram} disabled={offProgramming}>
               {offProgramming ? 'Updating...' : 'Off Program'}
+            </button>
+          )}
+
+          {recordExists && (
+            <button className="btn btn-danger" onClick={handleDeleteEntry} disabled={deleting}>
+              {deleting ? 'Deleting...' : `Delete ${isBackfill ? recordDate : 'Today'} Entry`}
             </button>
           )}
 
